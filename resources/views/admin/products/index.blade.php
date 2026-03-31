@@ -2,8 +2,8 @@
 
 @section('content')
 <div class="header">
-    <h1>商品列表</h1>
-    <a href="{{ route('admin.products.create') }}" class="btn">+ 新增商品</a>
+    <h1>🛍️ 商品魔法寶庫</h1>
+    <a href="{{ route('admin.products.create') }}" class="btn">✨ 新增魔法商品</a>
 </div>
 
 <div class="card">
@@ -60,7 +60,7 @@
             @endif
         </div>
     @else
-        <p style="text-align:center; color: var(--text-light);">目前還沒有商品喔，請點擊上方新增商品。</p>
+        <p style="text-align:center; color: var(--text-light); font-size: 1.2rem; margin-top: 2rem;">🎀 目前寶庫空空如也喵，請點擊上方新增魔法商品 ✨</p>
     @endif
 </div>
 @endsection

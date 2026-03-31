@@ -6,92 +6,114 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>清新選物店</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+
         :root {
-            --brand-color: #81D4FA; /* 預設為淺藍/薄荷系 */
-            --brand-dark: #4fc3f7;
-            --brand-light: #e1f5fe;
-            --text-main: #37474F;
-            --text-muted: #90A4AE;
-            --bg-color: #F8FDFF;
+            /* Pokepia Kawaii Palette */
+            --brand-color: #ffb6c1; /* 草莓牛奶粉 */
+            --brand-dark: #f08cb3;  /* 稍微深一點的粉紅 */
+            --brand-light: #ffe4e1; /* 迷霧玫瑰 (Misty Rose) */
+            --accent-mint: #a8e6cf; /* 粉彩薄荷 (Pastel Mint) */
+            --accent-lavender: #d4a5a5; /* 粉柔玫瑰 / 薰衣草系陰影色 */
+            --text-main: #6b5b5b;   /* 深褐色取代生硬黑色，更柔和 */
+            --text-muted: #9e8e8e;
+            --bg-color: #fffafb;    /* 帶點極淡粉的白色背景 */
             --card-bg: #ffffff;
+            
+            --spring-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         body {
             margin: 0;
-            font-family: 'Helvetica Neue', 'PingFang TC', '微軟正黑體', sans-serif;
+            font-family: 'M PLUS Rounded 1c', 'Quicksand', 'Helvetica Neue', 'PingFang TC', sans-serif;
             background-color: var(--bg-color);
+            background-image: radial-gradient(var(--brand-light) 10%, transparent 10%);
+            background-size: 20px 20px; /* 微妙的波卡圓點點綴 */
             color: var(--text-main);
             overflow-x: hidden;
+            font-weight: 700;
         }
 
-        /* Navbar */
+        /* Navbar - Floating Pill */
         .navbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem 5%;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
+            padding: 0.8rem 2rem;
+            margin: 1.5rem 5%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
             position: sticky;
-            top: 0;
+            top: 20px;
             z-index: 100;
-            box-shadow: 0 4px 20px rgba(129, 212, 250, 0.1);
+            border-radius: 50px;
+            box-shadow: 0 8px 25px rgba(255, 182, 193, 0.3);
+            border: 3px solid white; /* 貼紙白邊感 */
         }
 
         .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
+            font-size: 1.8rem;
+            font-weight: 800;
             color: var(--brand-dark);
             text-decoration: none;
             letter-spacing: 2px;
+            text-shadow: 2px 2px 0px white;
         }
 
         .cart-icon {
             position: relative;
             cursor: pointer;
-            padding: 0.5rem;
+            padding: 0.8rem;
             border-radius: 50%;
-            transition: background 0.3s;
+            background: white;
+            color: var(--brand-dark);
+            border: 2px solid var(--brand-light);
+            transition: all 0.3s var(--spring-bounce);
+            box-shadow: 0 4px 10px rgba(255, 182, 193, 0.2);
         }
 
         .cart-icon:hover {
+            transform: translateY(-3px) scale(1.05);
             background: var(--brand-light);
+            border-color: var(--brand-dark);
         }
 
         .cart-count {
             position: absolute;
-            top: 0;
-            right: 0;
-            background: #ff7043;
-            color: white;
-            font-size: 0.75rem;
-            width: 18px;
-            height: 18px;
+            top: -5px;
+            right: -5px;
+            background: var(--accent-mint);
+            color: #4a6c62;
+            font-size: 0.8rem;
+            font-weight: 800;
+            width: 22px;
+            height: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            transform: translate(20%, -20%);
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
         .main-content {
-            padding: 3rem 5%;
-            min-height: calc(100vh - 80px);
+            padding: 1rem 5% 4rem;
+            min-height: calc(100vh - 120px);
         }
 
-        /* Cart Drawer */
+        /* Cart Drawer (超圓潤果凍感) */
         .cart-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.3);
-            backdrop-filter: blur(4px);
+            background: rgba(107, 91, 91, 0.3);
+            backdrop-filter: blur(5px);
             z-index: 999;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.3s ease;
+            transition: all 0.4s ease;
         }
 
         .cart-overlay.active {
@@ -101,26 +123,29 @@
 
         .cart-drawer {
             position: fixed;
-            top: 0;
-            right: -400px;
-            width: 100%;
+            top: 15px;
+            right: -420px;
+            width: calc(100% - 30px);
             max-width: 400px;
-            height: 100%;
+            height: calc(100vh - 30px);
             background: var(--card-bg);
             z-index: 1000;
-            box-shadow: -5px 0 20px rgba(0,0,0,0.05);
-            transition: right 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            border-radius: 30px;
+            box-shadow: -10px 0 40px rgba(255, 182, 193, 0.3);
+            border: 4px solid white;
+            transition: right 0.6s var(--spring-bounce);
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         .cart-drawer.active {
-            right: 0;
+            right: 15px;
         }
 
         .cart-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--brand-light);
+            padding: 1.5rem 2rem;
+            background: var(--brand-light);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -128,21 +153,30 @@
 
         .cart-header h2 {
             margin: 0;
-            font-size: 1.25rem;
+            font-size: 1.4rem;
             color: var(--brand-dark);
+            font-weight: 800;
         }
 
         .close-cart {
-            background: none;
+            background: white;
             border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
             font-size: 1.5rem;
             cursor: pointer;
-            color: var(--text-muted);
-            transition: color 0.3s;
+            color: var(--brand-dark);
+            box-shadow: 0 2px 8px rgba(255, 182, 193, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: transform 0.3s var(--spring-bounce);
         }
 
         .close-cart:hover {
-            color: var(--text-main);
+            transform: scale(1.1) rotate(90deg);
         }
 
         .cart-items {
@@ -150,20 +184,36 @@
             overflow-y: auto;
             padding: 1.5rem;
         }
+        
+        /* 捲軸美化 */
+        .cart-items::-webkit-scrollbar {
+            width: 8px;
+        }
+        .cart-items::-webkit-scrollbar-thumb {
+            background: var(--brand-light);
+            border-radius: 10px;
+        }
 
         .cart-item {
             display: flex;
             align-items: center;
             margin-bottom: 1.5rem;
             gap: 1rem;
+            background: var(--bg-color);
+            padding: 0.8rem;
+            border-radius: 20px;
+            border: 2px solid white;
+            box-shadow: 0 4px 12px rgba(255, 182, 193, 0.15);
         }
 
         .cart-item img {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
+            width: 65px;
+            height: 65px;
+            border-radius: 14px;
             object-fit: cover;
-            background: var(--brand-light);
+            background: #fff;
+            padding: 2px;
+            border: 2px solid var(--brand-light);
         }
 
         .cart-item-info {
@@ -171,118 +221,138 @@
         }
 
         .cart-item-title {
-            margin: 0 0 0.5rem 0;
-            font-size: 1rem;
+            margin: 0 0 0.3rem 0;
+            font-size: 1.05rem;
+            font-weight: 800;
         }
 
         .cart-item-price {
-            color: var(--text-muted);
+            color: var(--brand-dark);
+            font-weight: 700;
             margin: 0;
-            font-size: 0.9rem;
+            font-size: 1rem;
         }
 
         .cart-item-remove {
-            color: #ff7043;
-            background: none;
+            color: white;
+            background: #ffb6c1;
             border: none;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 0.8rem;
-            padding: 0;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .cart-item-remove:hover {
+            background: #ff9ebd;
+            transform: scale(1.05);
         }
 
         .cart-footer {
-            padding: 1.5rem;
-            border-top: 1px solid var(--brand-light);
-            background: #fafafa;
+            padding: 1.5rem 2rem;
+            background: white;
+            border-top: 3px dashed var(--brand-light);
         }
 
         .cart-total {
             display: flex;
             justify-content: space-between;
-            font-size: 1.25rem;
-            font-weight: bold;
+            font-size: 1.3rem;
+            font-weight: 800;
             margin-bottom: 1.5rem;
+            color: var(--brand-dark);
         }
 
         .checkout-btn {
             width: 100%;
-            background: var(--brand-dark);
+            background: linear-gradient(135deg, var(--brand-color), var(--brand-dark));
             color: white;
             border: none;
-            padding: 1rem;
+            padding: 1.2rem;
             border-radius: 50px;
-            font-size: 1rem;
-            font-weight: bold;
+            font-size: 1.1rem;
+            font-weight: 800;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 15px rgba(79, 195, 247, 0.4);
+            transition: transform 0.3s var(--spring-bounce), box-shadow 0.3s;
+            box-shadow: 0 6px 20px rgba(255, 182, 193, 0.6);
+            letter-spacing: 1px;
         }
 
         .checkout-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(79, 195, 247, 0.6);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(255, 182, 193, 0.8);
         }
 
         .empty-cart-msg {
             text-align: center;
             color: var(--text-muted);
-            margin-top: 2rem;
+            margin-top: 3rem;
+            font-size: 1.1rem;
         }
         
-        /* Toast 通知 */
+        /* Toast 通知 - 粉彩氣泡 */
         .toast {
             position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
-            background: var(--brand-dark);
-            color: white;
-            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--brand-light), white);
+            color: var(--brand-dark);
+            font-weight: 800;
+            padding: 15px 30px;
             border-radius: 50px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 3px solid white;
+            box-shadow: 0 8px 25px rgba(255, 182, 193, 0.4);
             opacity: 0;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.5s var(--spring-bounce);
             z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
+        .toast::before { content: '🎀 '; font-size: 1.2rem; }
         
         .toast.show {
             transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
 
-        /* Server-side error fixes & Chat UI */
+        /* Chat UI - 魔法對話助手 */
         .chatbot-fab {
             position: fixed;
             bottom: 30px;
             right: 30px;
-            width: 60px;
-            height: 60px;
-            background: var(--brand-dark);
+            width: 65px;
+            height: 65px;
+            background: linear-gradient(135deg, var(--accent-mint), #8ee0c2);
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(79, 195, 247, 0.4);
+            box-shadow: 0 8px 25px rgba(168, 230, 207, 0.6);
+            border: 4px solid white;
             cursor: pointer;
             z-index: 998;
-            transition: transform 0.3s;
+            transition: transform 0.4s var(--spring-bounce);
         }
 
         .chatbot-fab:hover {
-            transform: scale(1.1);
+            transform: translateY(-5px) scale(1.1) rotate(10deg);
         }
 
         .chat-window {
             position: fixed;
-            bottom: 100px;
+            bottom: 110px;
             right: 30px;
-            width: 350px;
-            height: 500px;
-            max-height: calc(100vh - 120px);
-            background: var(--card-bg);
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            width: 360px;
+            height: 550px;
+            max-height: calc(100vh - 140px);
+            background: var(--bg-color);
+            border-radius: 30px;
+            border: 4px solid white;
+            box-shadow: 0 15px 40px rgba(255, 182, 193, 0.35);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -291,7 +361,7 @@
             transform: scale(0);
             opacity: 0;
             pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.5s var(--spring-bounce);
         }
 
         .chat-window.active {
@@ -301,83 +371,106 @@
         }
 
         .chat-header {
-            background: var(--brand-dark);
+            background: linear-gradient(135deg, var(--brand-color), var(--brand-dark));
             color: white;
-            padding: 1rem;
+            padding: 1.2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
         }
         
         .chat-header h3 {
             margin: 0;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
+            font-weight: 800;
             display: flex;
             align-items: center;
             gap: 8px;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
         }
 
         .close-chat {
-            background: none;
+            background: rgba(255,255,255,0.2);
             border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
             color: white;
-            font-size: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: bold;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
         }
+        .close-chat:hover { background: rgba(255,255,255,0.4); transform: scale(1.1); }
 
         .chat-messages {
             flex-grow: 1;
-            padding: 1rem;
+            padding: 1.5rem;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
-            background: #fafafa;
+            gap: 1.2rem;
         }
+        
+        .chat-messages::-webkit-scrollbar { width: 6px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: var(--brand-light); border-radius: 10px; }
 
         .message {
-            max-width: 80%;
-            padding: 0.75rem 1rem;
-            border-radius: 18px;
-            line-height: 1.4;
+            max-width: 75%;
+            padding: 0.8rem 1.2rem;
+            border-radius: 20px;
+            line-height: 1.5;
             font-size: 0.95rem;
             word-break: break-all;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.03);
+            position: relative;
         }
 
         .message.bot {
             background: white;
-            border: 1px solid var(--brand-light);
-            border-bottom-left-radius: 4px;
+            color: var(--text-main);
+            border: 2px solid var(--brand-light);
+            border-bottom-left-radius: 6px;
             align-self: flex-start;
         }
 
         .message.user {
             background: var(--brand-dark);
             color: white;
-            border-bottom-right-radius: 4px;
+            border-bottom-right-radius: 6px;
             align-self: flex-end;
+            box-shadow: 0 4px 12px rgba(240, 140, 179, 0.4);
         }
 
         .chat-input-area {
-            padding: 1rem;
-            border-top: 1px solid var(--brand-light);
+            padding: 1.2rem;
+            background: white;
+            border-top: 2px dashed var(--brand-light);
             display: flex;
             gap: 10px;
-            background: white;
         }
 
         .chat-input-area input {
             flex-grow: 1;
-            border: 1px solid #e0e0e0;
+            background: var(--bg-color);
+            border: 2px solid var(--brand-light);
             border-radius: 50px;
-            padding: 0.5rem 1rem;
+            padding: 0.8rem 1.2rem;
             outline: none;
-            font-size: 0.95rem;
-            transition: border-color 0.3s;
+            font-size: 1rem;
+            font-family: inherit;
+            color: var(--text-main);
+            transition: all 0.3s;
         }
 
         .chat-input-area input:focus {
             border-color: var(--brand-dark);
+            box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.2);
+            background: white;
         }
 
         .chat-send-btn {
@@ -385,29 +478,30 @@
             color: white;
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s;
+            transition: transform 0.2s var(--spring-bounce);
             flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(240, 140, 179, 0.4);
         }
 
         .chat-send-btn:hover {
-            transform: scale(1.1);
+            transform: scale(1.1) translateY(-2px);
         }
 
         .typing-indicator {
             display: none;
-            padding: 0.5rem 1rem;
+            padding: 0.8rem 1.2rem;
             background: white;
-            border: 1px solid var(--brand-light);
-            border-radius: 18px;
-            border-bottom-left-radius: 4px;
+            border: 2px solid var(--brand-light);
+            border-radius: 20px;
+            border-bottom-left-radius: 6px;
             align-self: flex-start;
-            gap: 4px;
+            gap: 6px;
         }
 
         .typing-indicator.active {
@@ -415,26 +509,27 @@
         }
 
         .dot {
-            width: 6px;
-            height: 6px;
-            background: #ccc;
+            width: 8px;
+            height: 8px;
+            background: var(--brand-dark);
             border-radius: 50%;
             animation: bounce 1.4s infinite ease-in-out;
+            opacity: 0.6;
         }
 
         .dot:nth-child(1) { animation-delay: -0.32s; }
         .dot:nth-child(2) { animation-delay: -0.16s; }
 
         @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
+            0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+            40% { transform: scale(1); opacity: 1; }
         }
     </style>
 </head>
 <body>
 
     <nav class="navbar">
-        <a href="{{ route('shop.index') }}" class="logo">FRESH.</a>
+        <a href="{{ route('shop.index') }}" class="logo">🎀 FRESH.</a>
         <div class="cart-icon" onclick="toggleCart()">
             <!-- SVG Cart Icon -->
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -459,15 +554,12 @@
     <div class="chat-window" id="chat-window">
         <div class="chat-header">
             <h3>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line>
-                </svg>
-                購物小幫手
+                ✨ 購物小幫手 🎀
             </h3>
             <button class="close-chat" onclick="toggleChat()">&times;</button>
         </div>
         <div class="chat-messages" id="chat-messages">
-            <div class="message bot">您好！我是 FRESH 的購物小幫手，隨時可以告訴我您想找什麼商品，或是直接請我幫您加入購物車喔！</div>
+            <div class="message bot">您好喵！我是 FRESH 購物小幫手 ✨ 隨時告訴我想找什麼魔法商品吧～🎀</div>
             <div class="typing-indicator" id="typing-indicator">
                 <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             </div>

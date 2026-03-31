@@ -5,20 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>商品管理後台</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+
         :root {
-            --primary: #2d3748;
-            --secondary: #e2e8f0;
-            --accent: #48bb78;
-            --text-dark: #1a202c;
-            --text-light: #718096;
+            /* Pokepia Kawaii Admin Palette */
+            --primary: #f08cb3;      /* 粉紅 (主色) */
+            --primary-dark: #d67a9e; /* 深粉紅 */
+            --secondary: #ffe4e1;    /* 迷霧玫瑰 / 邊框與次要色 */
+            --accent: #a8e6cf;       /* 粉彩薄荷 / 按鈕色 */
+            --accent-hover: #8ce0c0;
+            --danger: #ffb6c1;
+            --danger-hover: #f08cb3;
+            --text-dark: #6b5b5b;    /* 深褐色 */
+            --text-light: #d4a5a5;   /* 淺褐色/粉灰 */
             --white: #ffffff;
-            --bg: #f7fafc;
+            --bg: #fffafb;           /* 淡粉白背景 */
+            
+            --spring-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         body {
             margin: 0;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'M PLUS Rounded 1c', 'Quicksand', 'Helvetica Neue', Arial, sans-serif;
+            font-weight: 700;
             background-color: var(--bg);
+            background-image: radial-gradient(var(--secondary) 10%, transparent 10%);
+            background-size: 20px 20px;
             color: var(--text-dark);
             display: flex;
             min-height: 100vh;
@@ -26,38 +38,51 @@
 
         .sidebar {
             width: 250px;
-            background-color: var(--primary);
+            background: linear-gradient(180deg, var(--primary), var(--primary-dark));
             color: var(--white);
             display: flex;
             flex-direction: column;
             padding: 2rem 1rem;
+            box-shadow: 4px 0 20px rgba(240, 140, 179, 0.3);
+            border-top-right-radius: 40px;
+            border-bottom-right-radius: 40px;
+            border-right: 4px solid white;
+            z-index: 10;
         }
 
         .sidebar h2 {
             margin-top: 0;
-            font-size: 1.5rem;
+            font-size: 1.6rem;
+            font-weight: 800;
             text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 1rem;
+            border-bottom: 2px dashed rgba(255,255,255,0.4);
+            padding-bottom: 1.5rem;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
         }
 
         .sidebar a {
-            color: var(--secondary);
+            color: var(--white);
             text-decoration: none;
-            padding: 0.75rem 1rem;
-            margin: 0.5rem 0;
-            border-radius: 4px;
-            transition: background 0.3s;
+            padding: 0.8rem 1.2rem;
+            margin: 0.5rem 10px;
+            border-radius: 50px;
+            transition: all 0.3s var(--spring-bounce);
+            font-weight: 800;
+            opacity: 0.85;
+            display: block;
         }
 
         .sidebar a:hover, .sidebar a.active {
-            background-color: rgba(255,255,255,0.1);
-            color: var(--white);
+            background-color: white;
+            color: var(--primary);
+            opacity: 1;
+            transform: scale(1.05) translateX(5px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
         .main-content {
             flex-grow: 1;
-            padding: 2rem;
+            padding: 3rem;
             overflow-y: auto;
         }
 
@@ -67,42 +92,75 @@
             align-items: center;
             margin-bottom: 2rem;
         }
+        
+        .header h1 {
+            color: var(--primary);
+            font-size: 2.2rem;
+            font-weight: 800;
+            text-shadow: 2px 2px 0px white;
+            margin: 0;
+        }
 
         .btn {
             display: inline-block;
             background: var(--accent);
-            color: var(--white);
-            padding: 0.5rem 1rem;
+            color: #4a6c62;
+            padding: 0.8rem 1.5rem;
             text-decoration: none;
-            border-radius: 4px;
-            border: none;
+            border-radius: 50px;
+            border: 3px solid white;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s var(--spring-bounce);
+            font-weight: 800;
+            box-shadow: 0 4px 10px rgba(168, 230, 207, 0.4);
+            text-align: center;
+            font-family: inherit;
         }
 
         .btn:hover {
-            background: #38a169;
+            background: var(--accent-hover);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 6px 15px rgba(168, 230, 207, 0.6);
         }
 
-        .btn-danger { background: #e53e3e; }
-        .btn-danger:hover { background: #c53030; }
+        .btn-danger { 
+            background: var(--danger); 
+            color: white; 
+            box-shadow: 0 4px 10px rgba(255, 182, 193, 0.4); 
+            border-color: white;
+        }
+        .btn-danger:hover { 
+            background: var(--danger-hover); 
+            box-shadow: 0 6px 15px rgba(240, 140, 179, 0.6); 
+        }
 
-        .btn-secondary { background: var(--text-light); }
-        .btn-secondary:hover { background: #4a5568; }
+        .btn-secondary { 
+            background: white; 
+            color: var(--primary); 
+            border-color: var(--primary);
+            box-shadow: 0 4px 10px rgba(240, 140, 179, 0.2);
+        }
+        .btn-secondary:hover { 
+            background: var(--secondary); 
+        }
 
         .alert {
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 4px;
+            padding: 1.2rem;
+            margin-bottom: 1.5rem;
+            border-radius: 20px;
+            font-weight: 800;
+            border: 3px solid white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-        .alert-success { background: #c6f6d5; color: #22543d; }
-        .alert-danger { background: #fed7d7; color: #822727; }
+        .alert-success { background: #d4f0e5; color: #22543d; }
+        .alert-danger { background: #ffe4e1; color: #822727; }
 
         .card {
             background: var(--white);
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            padding: 2rem;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(240, 140, 179, 0.15);
+            padding: 2.5rem;
+            border: 4px solid white;
         }
 
         .form-group {
@@ -110,44 +168,75 @@
         }
         .form-group label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-weight: bold;
+            margin-bottom: 0.8rem;
+            font-weight: 800;
+            color: var(--primary);
+            font-size: 1.1rem;
         }
         .form-group input, .form-group textarea {
             width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--secondary);
-            border-radius: 4px;
+            padding: 1rem 1.2rem;
+            border: 2px solid var(--secondary);
+            border-radius: 20px;
             font-size: 1rem;
             box-sizing: border-box;
+            background: var(--bg);
+            transition: all 0.3s;
+            font-family: inherit;
+            color: var(--text-dark);
+            font-weight: 700;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(240, 140, 179, 0.2);
         }
         .form-group textarea {
             resize: vertical;
-            min-height: 100px;
+            min-height: 120px;
+            border-radius: 20px;
         }
 
         table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0 10px;
         }
         table th, table td {
             text-align: left;
-            padding: 1rem;
-            border-bottom: 1px solid var(--secondary);
+            padding: 1.2rem 1rem;
         }
         table th {
-            background-color: var(--bg);
-            color: var(--text-light);
+            color: var(--primary);
+            font-weight: 800;
+            padding-bottom: 0.5rem;
+            text-shadow: 1px 1px 0px white;
         }
+        table tbody tr {
+            background: var(--bg);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+            transition: transform 0.2s;
+        }
+        table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(240, 140, 179, 0.1);
+        }
+        table td:first-child { border-top-left-radius: 20px; border-bottom-left-radius: 20px; border-left: 2px solid white; }
+        table td:last-child { border-top-right-radius: 20px; border-bottom-right-radius: 20px; border-right: 2px solid white; }
+        table td { border-top: 2px solid white; border-bottom: 2px solid white; }
+
         .img-preview {
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             object-fit: cover;
-            border-radius: 4px;
+            border-radius: 15px;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .action-btns {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.8rem;
         }
     </style>
     <!-- Chatbot CSS -->
@@ -336,7 +425,7 @@
 </head>
 <body>
     <aside class="sidebar">
-        <h2>Logo Admin</h2>
+        <h2>🎀 甜心後台</h2>
         <!-- 修正側邊欄為當前路由如果包含 admin.products 則 active -->
         <a href="{{ route('admin.products.index') }}" class="{{ request()->routeIs('admin.products.*') ? 'active' : '' }}">商品管理</a>
         <a href="{{ route('shop.index') }}" target="_blank">查看前台</a>
@@ -368,15 +457,12 @@
     <div class="chat-window" id="chat-window">
         <div class="chat-header">
             <h3>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line>
-                </svg>
-                系統管理助理
+                ✨ 魔法系統助理 🎀
             </h3>
             <button class="close-chat" onclick="toggleChat()">&times;</button>
         </div>
         <div class="chat-messages" id="chat-messages">
-            <div class="message bot">管理員您好！我可以協助您新增商品，或搜尋與跳轉至商品編輯頁面。請問有什麼能幫助您的？</div>
+            <div class="message bot">管理員好喵！我是魔法小助理 ✨ 我可以幫您新增商品，或直接跳轉到編輯頁面。請問有什麼需要幫助的嗎？🎀</div>
             <div class="typing-indicator" id="typing-indicator">
                 <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             </div>

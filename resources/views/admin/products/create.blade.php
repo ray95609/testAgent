@@ -2,8 +2,8 @@
 
 @section('content')
 <div class="header">
-    <h1>新增商品</h1>
-    <a href="{{ route('admin.products.index') }}" class="btn btn-secondary">返回列表</a>
+    <h1>🌟 新增魔法商品</h1>
+    <a href="{{ route('admin.products.index') }}" class="btn btn-secondary">返回寶庫</a>
 </div>
 
 <div class="card">
@@ -33,7 +33,7 @@
             @error('description')<span style="color: red; font-size: 0.8rem;">{{ $message }}</span>@enderror
         </div>
 
-        <button type="submit" class="btn">儲存商品</button>
+        <button type="submit" class="btn">✨ 施放魔法儲存</button>
     </form>
 </div>
 @endsection
