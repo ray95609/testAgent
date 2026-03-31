@@ -4,23 +4,131 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Models\Product;
 
 class ChatbotController extends Controller
 {
+    /**
+     * 第一階段：意圖判斷小精靈
+     * 只吃最後幾句話（或全部對話），不吃龐大的商品 Context。
+     * 強制回傳 JSON，解析出 intent 字串。
+     */
+    private function determineIntent($messages, $apiKey, $availableIntents)
+    {
+        $modelId = 'gemini-3-flash-preview';
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelId}:generateContent?key={$apiKey}";
+
+        // 取出最後一次使用者的發言即可，大幅節省 Token
+        $lastMessage = '';
+        foreach (array_reverse($messages) as $msg) {
+            if (($msg['role'] ?? '') === 'user') {
+                $lastMessage = $msg['content'] ?? '';
+                break;
+            }
+        }
+        if (!$lastMessage) {
+             // 如果沒有 user 訊息，預設 general
+             return 'general';
+        }
+
+        $intentDescriptions = [];
+        foreach ($availableIntents as $intent => $desc) {
+            $intentDescriptions[] = "- {$intent}: {$desc}";
+        }
+        $intentListStr = implode("\n", $intentDescriptions);
+
+        $systemInstruction = "你是一個意圖分析機器人。請根據使用者的敘述，判斷其意圖。回傳格式必須為嚴格的 JSON：{\"intent\": \"意圖名稱\"}。意圖名稱只能是以下之一：\n{$intentListStr}\n\n如果不屬於任何一種，請回傳 'general'。";
+
+        $payload = [
+            'systemInstruction' => [
+                'parts' => [['text' => $systemInstruction]]
+            ],
+            'contents' => [
+                [
+                    'role' => 'user',
+                    'parts' => [['text' => $lastMessage]]
+                ]
+            ],
+            // force JSON formatting setting in Gemini API
+            'generationConfig' => [
+                'responseMimeType' => 'application/json'
+            ]
+        ];
+
+        try {
+            $response = Http::timeout(10)->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
+            if ($response->successful()) {
+                $data = $response->json();
+                $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                // 清理可能包含的 Markdown JSON codeblock (` ` `json ... ` ` `)
+                $text = preg_replace('/```json\s*(.*?)\s*```/s', '$1', $text);
+                $text = str_replace('```', '', $text);
+                $decoded = json_decode(trim($text), true);
+                
+                $intentResult = $decoded['intent'] ?? 'general';
+                Log::info('Intent Router result: ' . $intentResult . ' for message: ' . $lastMessage);
+                return $intentResult;
+            }
+        } catch (\Exception $e) {
+            Log::error('Intent Router Error: ' . $e->getMessage());
+        }
+        
+        return 'general';
+    }
+
     public function chat(Request $request)
     {
         $messages = $request->input('messages', []);
 
-        // Load all available products context
-        $products = Product::all(['id', 'name', 'price', 'description']);
-        $productContext = "商店目前販售的商品如下 (ID, 名稱, 價格)：\n" . json_encode($products, JSON_UNESCAPED_UNICODE) . "\n若使用者表達想購買其中某樣商品，請主動呼叫 add_to_cart 函式加進購物車。";
+        $apiKey = env('GEMINI_API_KEY', env('OPENAI_API_KEY'));
+        if (!$apiKey) {
+            return response()->json([
+                'success' => false,
+                'message' => '抱歉，系統尚未設定 Gemini 金鑰，所以無法對話喔！請洽管理員。',
+            ], 200); 
+        }
 
-        // Prepare the initial system message with instructions
-        $systemMessage = [
-            'role' => 'system',
-            'content' => "你是一個在 FRESH 品牌選物店的線上貼心客服小幫手。請用親切、簡短的繁體中文與顧客對話。\n\n" . $productContext
-        ];
+        // ==========================================
+        // Stage 1: Intent Routing
+        // ==========================================
+        $intent = $this->determineIntent($messages, $apiKey, [
+            'shopping' => '想要購買商品、加入購物車、詢問特定商品',
+            'general' => '一般問候、聊天、不確定意圖'
+        ]);
+
+        // ==========================================
+        // Stage 2: 準備對應的 Context 與 Tools
+        // ==========================================
+        $systemText = "你是一個在 FRESH 品牌選物店的線上貼心客服小幫手。請用親切、簡短的繁體中文與顧客對話。\n\n";
+        $tools = [];
+
+        if ($intent === 'shopping') {
+            $products = Product::all(['id', 'name', 'price', 'description']);
+            $systemText .= "商店目前販售的商品如下 (ID, 名稱, 價格)：\n" . json_encode($products, JSON_UNESCAPED_UNICODE) . "\n【重要指示】你有權限可以直接將商品加入購物車！當使用者表達想購買其中某樣商品，請「絕對不要」請他們自己去操作，你必須主動幫他們呼叫 add_to_cart 函式並加進購物車。";
+            
+            $tools[] = [
+                'functionDeclarations' => [
+                    [
+                        'name' => 'add_to_cart',
+                        'description' => 'Add a specific product to the shopping cart based on user intent.',
+                        'parameters' => [
+                            'type' => 'OBJECT',
+                            'properties' => [
+                                'product_id' => [
+                                    'type' => 'INTEGER',
+                                    'description' => 'The ID of the product to add to cart.'
+                                ]
+                            ],
+                            'required' => ['product_id']
+                        ]
+                    ]
+                ]
+            ];
+        } else {
+             // General intent: no heavy context, no tools, just basic chat.
+             $systemText .= "商店販售各種質感生活選物。目前的意圖已判定為一般內容，請進行一般問候交流即可，無須且也無法呼叫任何功能。若是使用者詢問商品，請溫柔地提醒他們可以直接說出『我想購買OOO』。";
+        }
 
         // Translate history to Gemini format
         $geminiMessages = [];
@@ -32,56 +140,32 @@ class ChatbotController extends Controller
             ];
         }
 
-        // 讀取 Gemini 金鑰（如果使用者命名為 OPENAI_API_KEY 也會一併相容撈取）
-        $apiKey = env('GEMINI_API_KEY', env('OPENAI_API_KEY'));
-        if (!$apiKey) {
-            return response()->json([
-                'success' => false,
-                'message' => '抱歉，系統尚未設定 Gemini 金鑰，所以無法對話喔！請洽管理員。',
-            ], 200); 
-        }
-
+        // ==========================================
+        // Stage 3: 主要呼叫 (Function Execution)
+        // ==========================================
         try {
             $modelId = 'gemini-3-flash-preview';
             $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelId}:generateContent?key={$apiKey}";
+            
             $payload = [
                 'systemInstruction' => [
-                    'parts' => [
-                        ['text' => "你是一個在 FRESH 品牌選物店的線上貼心客服小幫手。請用親切、簡短的繁體中文與顧客對話。\n\n" . $productContext]
-                    ]
+                    'parts' => [['text' => $systemText]]
                 ],
                 'contents' => $geminiMessages,
-                'tools' => [
-                    [
-                        'functionDeclarations' => [
-                            [
-                                'name' => 'add_to_cart',
-                                'description' => 'Add a specific product to the shopping cart based on user intent.',
-                                'parameters' => [
-                                    'type' => 'OBJECT',
-                                    'properties' => [
-                                        'product_id' => [
-                                            'type' => 'INTEGER',
-                                            'description' => 'The ID of the product to add to cart.'
-                                        ]
-                                    ],
-                                    'required' => ['product_id']
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
             ];
+            
+            // 只有判定為 shopping 才帶入工具
+            if (!empty($tools)) {
+                $payload['tools'] = $tools;
+            }
 
-            $response = \Illuminate\Support\Facades\Http::timeout(30)
-                ->withHeaders(['Content-Type' => 'application/json'])
-                ->post($url, $payload);
+            $response = Http::timeout(30)->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
 
             if ($response->failed()) {
-                \Illuminate\Support\Facades\Log::error('Gemini Error: ' . $response->body());
+                Log::error('Gemini Error: ' . $response->body());
                 return response()->json([
                     'success' => false,
-                    'message' => '抱歉，我的大腦暫時連線異常，請稍後再試！(錯誤: ' . $response->status() . ')'
+                    'message' => '抱歉，我的大腦暫時連線異常，請稍後再試！'
                 ], 200);
             }
 
@@ -92,14 +176,11 @@ class ChatbotController extends Controller
                  return response()->json([
                     'success' => true,
                     'action' => 'TEXT',
-                    'reply' => [
-                        'role' => 'assistant',
-                        'content' => '我有點混亂，可以再詳細說一次嗎？'
-                    ]
+                    'reply' => ['role' => 'assistant', 'content' => '我有點混亂，可以再詳細說一次嗎？']
                 ]);
             }
 
-            // 解讀 Gemini 回傳的 parts
+            // 解析回應
             $textResponse = '好的，有什麼能為您服務的嗎？';
             $action = 'TEXT';
             $productToReturn = null;
@@ -122,7 +203,6 @@ class ChatbotController extends Controller
                         }
                     }
                 } elseif (isset($part['text'])) {
-                    // 如果有自帶文字而且不是只拋 FunctionCall，保留 Gemini 的回答
                     if (!$hasFunctionCall) {
                         $textResponse = $part['text'];
                     }
@@ -133,7 +213,6 @@ class ChatbotController extends Controller
                 'success' => true,
                 'action' => $action,
                 'reply' => [
-                    // 前端需要的 role name 是 assistant (套用現有的邏輯)
                     'role' => 'assistant',
                     'content' => $textResponse
                 ]
@@ -157,8 +236,98 @@ class ChatbotController extends Controller
     {
         $messages = $request->input('messages', []);
 
-        $products = Product::all(['id', 'name', 'price', 'stock_quantity']);
-        $productContext = "這裡是系統後台。目前的商品資料庫如下 (ID, 名稱, 價格, 庫存)：\n" . json_encode($products, JSON_UNESCAPED_UNICODE) . "\n若使用者要新增、編輯、或跳轉至編輯頁面，請主動呼叫對應的函式（create_product, update_product, redirect_to_edit_page, redirect_to_create_page）。你是一個專業的後台商品管理系統助理。";
+        $apiKey = env('GEMINI_API_KEY', env('OPENAI_API_KEY'));
+        if (!$apiKey) {
+            return response()->json(['success' => false, 'message' => '未設定 Gemini 金鑰。']);
+        }
+
+        // ==========================================
+        // Stage 1: Intent Routing
+        // ==========================================
+        $intent = $this->determineIntent($messages, $apiKey, [
+            'manage_product' => '新增商品、更新商品、修改商品資料與價格',
+            'navigate_page' => '跳轉頁面、進入編輯頁面、進入新增頁面',
+            'general' => '一般問候、閒聊、不確定意圖'
+        ]);
+
+        // ==========================================
+        // Stage 2: 準備對應的 Context 與 Tools
+        // ==========================================
+        $systemText = "這裡是系統後台。你是一個專業的後台商品管理系統助理。\n\n";
+        $tools = [];
+
+        if (in_array($intent, ['manage_product', 'navigate_page'])) {
+            // 只有需要商品相關操作時才讀取 DB 全資料
+            $products = Product::all(['id', 'name', 'price', 'stock_quantity']);
+            $systemText .= "目前的商品資料庫如下 (ID, 名稱, 價格, 庫存)：\n" . json_encode($products, JSON_UNESCAPED_UNICODE) . "\n";
+
+            if ($intent === 'manage_product') {
+                $systemText .= "【重要指示】你擁有後台操作權限！若使用者要新增或編輯商品相關資訊，請主動幫他們呼叫對應的函式（create_product, update_product），千萬不要請他們自己操作。";
+                $tools[] = [
+                    'functionDeclarations' => [
+                        [
+                            'name' => 'create_product',
+                            'description' => '新增一件商品到資料庫',
+                            'parameters' => [
+                                'type' => 'OBJECT',
+                                'properties' => [
+                                    'name' => ['type' => 'STRING'],
+                                    'price' => ['type' => 'NUMBER'],
+                                    'description' => ['type' => 'STRING'],
+                                    'stock_quantity' => ['type' => 'INTEGER']
+                                ],
+                                'required' => ['name', 'price']
+                            ]
+                        ],
+                        [
+                            'name' => 'update_product',
+                            'description' => '更新現有商品的資料',
+                            'parameters' => [
+                                'type' => 'OBJECT',
+                                'properties' => [
+                                    'product_id' => ['type' => 'INTEGER'],
+                                    'name' => ['type' => 'STRING'],
+                                    'price' => ['type' => 'NUMBER'],
+                                    'description' => ['type' => 'STRING'],
+                                    'stock_quantity' => ['type' => 'INTEGER']
+                                ],
+                                'required' => ['product_id']
+                            ]
+                        ]
+                    ]
+                ];
+            } elseif ($intent === 'navigate_page') {
+                $systemText .= "【重要指示】若使用者只想跳轉至編輯頁面，或跳轉至新增商品頁面，請主動呼叫對應的函式（redirect_to_edit_page, redirect_to_create_page），千萬不要請他們自己點擊。";
+                $tools[] = [
+                    'functionDeclarations' => [
+                        [
+                            'name' => 'redirect_to_edit_page',
+                            'description' => '跳轉至某個特定商品的編輯頁面（當使用者只說要"進入編輯頁面"時使用）',
+                            'parameters' => [
+                                'type' => 'OBJECT',
+                                'properties' => [
+                                    'product_id' => ['type' => 'INTEGER', 'description' => '要編輯的商品 ID']
+                                ],
+                                'required' => ['product_id']
+                            ]
+                        ],
+                        [
+                            'name' => 'redirect_to_create_page',
+                            'description' => '跳轉至新增商品頁面，不帶參數即可',
+                            'parameters' => [
+                                'type' => 'OBJECT',
+                                'properties' => [
+                                    'intent' => ['type' => 'STRING']
+                                ]
+                            ]
+                        ]
+                    ]
+                ];
+            }
+        } else {
+             // General intent
+             $systemText .= "目前的對話屬於一般問候或不確定狀態，請直接進行文字回覆，不需要進行對商品的操作。";
+        }
 
         $geminiMessages = [];
         foreach ($messages as $msg) {
@@ -169,80 +338,27 @@ class ChatbotController extends Controller
             ];
         }
 
-        $apiKey = env('GEMINI_API_KEY', env('OPENAI_API_KEY'));
-        if (!$apiKey) {
-            return response()->json(['success' => false, 'message' => '未設定 Gemini 金鑰。']);
-        }
-
+        // ==========================================
+        // Stage 3: 主要呼叫 (Function Execution)
+        // ==========================================
         try {
             $modelId = 'gemini-3-flash-preview';
             $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelId}:generateContent?key={$apiKey}";
+            
             $payload = [
                 'systemInstruction' => [
-                    'parts' => [['text' => $productContext]]
+                    'parts' => [['text' => $systemText]]
                 ],
                 'contents' => $geminiMessages,
-                'tools' => [
-                    [
-                        'functionDeclarations' => [
-                            [
-                                'name' => 'create_product',
-                                'description' => '新增一件商品到資料庫',
-                                'parameters' => [
-                                    'type' => 'OBJECT',
-                                    'properties' => [
-                                        'name' => ['type' => 'STRING'],
-                                        'price' => ['type' => 'NUMBER'],
-                                        'description' => ['type' => 'STRING'],
-                                        'stock_quantity' => ['type' => 'INTEGER']
-                                    ],
-                                    'required' => ['name', 'price']
-                                ]
-                            ],
-                            [
-                                'name' => 'update_product',
-                                'description' => '更新現有商品的資料',
-                                'parameters' => [
-                                    'type' => 'OBJECT',
-                                    'properties' => [
-                                        'product_id' => ['type' => 'INTEGER'],
-                                        'name' => ['type' => 'STRING'],
-                                        'price' => ['type' => 'NUMBER'],
-                                        'description' => ['type' => 'STRING'],
-                                        'stock_quantity' => ['type' => 'INTEGER']
-                                    ],
-                                    'required' => ['product_id']
-                                ]
-                            ],
-                            [
-                                'name' => 'redirect_to_edit_page',
-                                'description' => '跳轉至某個特定商品的編輯頁面（當使用者只說要"進入編輯頁面"時使用）',
-                                'parameters' => [
-                                    'type' => 'OBJECT',
-                                    'properties' => [
-                                        'product_id' => ['type' => 'INTEGER', 'description' => '要編輯的商品 ID']
-                                    ],
-                                    'required' => ['product_id']
-                                ]
-                            ],
-                            [
-                                'name' => 'redirect_to_create_page',
-                                'description' => '跳轉至新增商品頁面，不帶參數即可',
-                                'parameters' => [
-                                    'type' => 'OBJECT',
-                                    'properties' => [
-                                        'intent' => ['type' => 'STRING']
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
             ];
+            if (!empty($tools)) {
+                $payload['tools'] = $tools;
+            }
 
             $response = Http::timeout(30)->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
 
             if ($response->failed()) {
+                Log::error('Gemini Error: ' . $response->body());
                 return response()->json(['success' => false, 'message' => 'API 錯誤']);
             }
 
@@ -272,7 +388,7 @@ class ChatbotController extends Controller
                             'stock_quantity' => $args['stock_quantity'] ?? 0,
                         ]);
                         $textResponse = "已為您新增商品：「{$product->name}」！";
-                        $action = 'RELOAD'; // 可以請前端重新整理列表
+                        $action = 'RELOAD';
                     } elseif ($funcName === 'update_product') {
                         $product = Product::find($args['product_id']);
                         if ($product) {
