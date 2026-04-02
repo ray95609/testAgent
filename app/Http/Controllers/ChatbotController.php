@@ -16,7 +16,7 @@ class ChatbotController extends Controller
      */
     private function determineIntent($messages, $apiKey, $availableIntents)
     {
-        $modelId = 'gemini-3-flash-preview';
+        $modelId = 'gemini-2.5-flash-lite';
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelId}:generateContent?key={$apiKey}";
 
         // 取出最後一次使用者的發言即可，大幅節省 Token
@@ -30,6 +30,28 @@ class ChatbotController extends Controller
         if (!$lastMessage) {
              // 如果沒有 user 訊息，預設 general
              return 'general';
+        }
+
+        // ==========================================
+        // 關鍵字快篩 (繞過 API 直接判定)，大幅提升速度
+        // ==========================================
+        $lowerMsg = mb_strtolower($lastMessage);
+        
+        // 前台攔截
+        if (isset($availableIntents['shopping'])) {
+            if (str_contains($lowerMsg, '買') || str_contains($lowerMsg, '購物車') || str_contains($lowerMsg, '多少錢')) {
+                return 'shopping';
+            }
+        }
+        
+        // 後台攔截
+        if (isset($availableIntents['manage_product'])) {
+            if (str_contains($lowerMsg, '新增') || str_contains($lowerMsg, '編輯') || str_contains($lowerMsg, '更新') || str_contains($lowerMsg, '修改')) {
+                return 'manage_product';
+            }
+            if (str_contains($lowerMsg, '進入') || str_contains($lowerMsg, '跳轉') || str_contains($lowerMsg, '頁面')) {
+                return 'navigate_page';
+            }
         }
 
         $intentDescriptions = [];
@@ -144,7 +166,8 @@ class ChatbotController extends Controller
         // Stage 3: 主要呼叫 (Function Execution)
         // ==========================================
         try {
-            $modelId = 'gemini-3-flash-preview';
+            // 為了提升穩定性與回答速度，主對話模組改用更流暢的 gemini-2.5-flash
+            $modelId = 'gemini-2.5-flash';
             $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelId}:generateContent?key={$apiKey}";
             
             $payload = [
@@ -159,7 +182,8 @@ class ChatbotController extends Controller
                 $payload['tools'] = $tools;
             }
 
-            $response = Http::timeout(30)->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
+            // 遇到掛站時早點跳出，並縮短 Timeout 至 15 秒
+            $response = Http::timeout(15)->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
 
             if ($response->failed()) {
                 Log::error('Gemini Error: ' . $response->body());
@@ -342,7 +366,8 @@ class ChatbotController extends Controller
         // Stage 3: 主要呼叫 (Function Execution)
         // ==========================================
         try {
-            $modelId = 'gemini-3-flash-preview';
+            // 後台主對話模組改用 gemini-2.5-flash
+            $modelId = 'gemini-2.5-flash';
             $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelId}:generateContent?key={$apiKey}";
             
             $payload = [
@@ -355,7 +380,8 @@ class ChatbotController extends Controller
                 $payload['tools'] = $tools;
             }
 
-            $response = Http::timeout(30)->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
+            // 縮短 Timeout 至 15 秒
+            $response = Http::timeout(15)->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
 
             if ($response->failed()) {
                 Log::error('Gemini Error: ' . $response->body());
